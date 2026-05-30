@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Typer Ligowy</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body { font-family: sans-serif; background: #f0f2f5; color: #222; }
+
+    header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header .logo { font-size: 1.3rem; font-weight: bold; letter-spacing: 1px; }
+
+    header .user-info { font-size: 0.9rem; color: #aaa; display: flex; align-items: center; gap: 12px; }
+    header .user-info span { color: #fff; font-weight: bold; }
+    header .user-info button {
+      background: none; border: 1px solid #555; color: #aaa;
+      padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;
+    }
+    header .user-info button:hover { border-color: #e94560; color: #e94560; }
+
+    nav {
+      background: #16213e;
+      display: flex;
+      gap: 4px;
+      padding: 0 32px;
+    }
+
+    nav button {
+      background: none; border: none; color: #aaa;
+      padding: 12px 20px; cursor: pointer; font-size: 0.95rem;
+      border-bottom: 3px solid transparent; transition: all 0.2s;
+    }
+
+    nav button.active { color: #fff; border-bottom-color: #e94560; }
+    nav button:hover:not(.active) { color: #ddd; }
+
+    main { max-width: 860px; margin: 32px auto; padding: 0 16px; }
+
+    .tab { display: none; }
+    .tab.active { display: block; }
+
+    h2 { margin-bottom: 16px; font-size: 1.1rem; color: #444; text-transform: uppercase; letter-spacing: 1px; }
+
+    table {
+      width: 100%; border-collapse: collapse;
+      background: #fff; border-radius: 8px; overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
+    th {
+      background: #1a1a2e; color: #fff; text-align: left;
+      padding: 12px 16px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+
+    td { padding: 11px 16px; border-bottom: 1px solid #f0f0f0; font-size: 0.95rem; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafafa; }
+
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.78rem; font-weight: bold; }
+    .badge.finished  { background: #d4edda; color: #155724; }
+    .badge.scheduled { background: #fff3cd; color: #856404; }
+
+    .card {
+      background: #fff; border-radius: 8px; padding: 28px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08); max-width: 420px;
+    }
+
+    label { display: block; margin-bottom: 4px; font-size: 0.85rem; color: #555; font-weight: bold; }
+
+    select, input[type="number"], input[type="text"], input[type="email"], input[type="password"] {
+      width: 100%; padding: 9px 12px; border: 1px solid #ddd;
+      border-radius: 6px; font-size: 0.95rem; margin-bottom: 16px;
+    }
+
+    .goals-row { display: flex; gap: 12px; }
+    .goals-row > div { flex: 1; }
+
+    button.submit {
+      background: #e94560; color: #fff; border: none;
+      padding: 11px 24px; border-radius: 6px; font-size: 1rem;
+      cursor: pointer; width: 100%; margin-top: 4px; transition: background 0.2s;
+    }
+
+    button.submit:hover { background: #c73652; }
+
+    .msg { margin-top: 14px; padding: 10px 14px; border-radius: 6px; font-size: 0.9rem; display: none; }
+    .msg.ok  { background: #d4edda; color: #155724; display: block; }
+    .msg.err { background: #f8d7da; color: #721c24; display: block; }
+
+    .rank-1 td:first-child { font-weight: bold; color: #e94560; }
+    .pts { font-weight: bold; font-size: 1.05rem; }
+
+    /* auth screen */
+    #auth-screen {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: #f0f2f5;
+    }
+
+    .auth-box {
+      background: #fff; border-radius: 10px; padding: 36px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.1); width: 360px;
+    }
+
+    .auth-box h1 { text-align: center; margin-bottom: 6px; color: #1a1a2e; font-size: 1.5rem; }
+    .auth-box p  { text-align: center; color: #888; margin-bottom: 24px; font-size: 0.9rem; }
+
+    .auth-tabs { display: flex; margin-bottom: 24px; border-bottom: 2px solid #eee; }
+    .auth-tabs button {
+      flex: 1; background: none; border: none; padding: 10px;
+      cursor: pointer; color: #888; font-size: 0.95rem; border-bottom: 2px solid transparent;
+      margin-bottom: -2px; transition: all 0.2s;
+    }
+    .auth-tabs button.active { color: #e94560; border-bottom-color: #e94560; font-weight: bold; }
+
+    .auth-form { display: none; }
+    .auth-form.active { display: block; }
+
+    #app-screen { display: none; }
+  </style>
+</head>
+<body>
+
+<!-- AUTH SCREEN — shown when not logged in -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <h1>⚽ Typer Ligowy</h1>
+    <p>Zaloguj się albo utwórz konto</p>
+
+    <div class="auth-tabs">
+      <button class="active" onclick="switchAuth('login')">Logowanie</button>
+      <button onclick="switchAuth('register')">Rejestracja</button>
+    </div>
+
+    <!-- login form -->
+    <div id="auth-login" class="auth-form active">
+      <label>Login</label>
+      <input type="text" id="l-nick" placeholder="np. marek" />
+      <label>Hasło</label>
+      <input type="password" id="l-pass" placeholder="hasło" onkeydown="if(event.key==='Enter') doLogin()" />
+      <button class="submit" onclick="doLogin()">Zaloguj</button>
+      <div class="msg" id="l-msg"></div>
+    </div>
+
+    <!-- register form -->
+    <div id="auth-register" class="auth-form">
+      <label>Login</label>
+      <input type="text" id="r-nick" placeholder="np. tomek" />
+      <label>E-mail</label>
+      <input type="email" id="r-email" placeholder="tomek@example.com" />
+      <label>Hasło</label>
+      <input type="password" id="r-pass" placeholder="hasło" />
+      <button class="submit" onclick="doRegister()">Utwórz konto</button>
+      <div class="msg" id="r-msg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- APP SCREEN — shown after login -->
+<div id="app-screen">
+  <header>
+    <div class="logo">⚽ Typer Ligowy</div>
+    <div class="user-info">
+      Zalogowany jako <span id="header-nick">—</span>
+      <button onclick="logout()">Wyloguj</button>
+    </div>
+  </header>
+
+  <nav>
+    <button class="active" onclick="showTab('matches', event)">Mecze</button>
+    <button onclick="showTab('predict', event)">Dodaj typ</button>
+    <button onclick="showTab('ranking', event)">Ranking</button>
+  </nav>
+
+  <main>
+
+    <!-- TAB: MECZE -->
+    <div id="tab-matches" class="tab active">
+      <h2>Mecze</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Liga</th><th>Mecz</th><th>Kickoff</th><th>Wynik</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="matches-body"><tr><td colspan="5">Ładowanie...</td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- TAB: DODAJ TYP -->
+    <div id="tab-predict" class="tab">
+      <h2>Dodaj typ</h2>
+      <div class="card">
+        <label>Mecz</label>
+        <select id="p-match">
+          <option value="">— wybierz mecz —</option>
+        </select>
+
+        <label>Twój typ</label>
+        <div class="goals-row">
+          <div>
+            <label>Gospodarze</label>
+            <input type="number" id="p-home" min="0" placeholder="0" />
+          </div>
+          <div>
+            <label>Goście</label>
+            <input type="number" id="p-away" min="0" placeholder="0" />
+          </div>
+        </div>
+
+        <button class="submit" onclick="submitPrediction()">Zapisz typ</button>
+        <div class="msg" id="p-msg"></div>
+      </div>
+    </div>
+
+    <!-- TAB: RANKING -->
+    <div id="tab-ranking" class="tab">
+      <h2>Ranking</h2>
+      <table>
+        <thead>
+          <tr><th>#</th><th>Gracz</th><th>Punkty</th></tr>
+        </thead>
+        <tbody id="ranking-body"><tr><td colspan="3">Ładowanie...</td></tr></tbody>
+      </table>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  const API = '';
+  let currentUser = null;  // {id, nick} after login
+
+  // --- init: check if already logged in ---
+  function init() {
+    const saved = localStorage.getItem('typer_user');
+    if (saved) {
+      currentUser = JSON.parse(saved);
+      showApp();
+    }
+  }
+
+  // --- auth screen ---
+  function switchAuth(tab) {
+    document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+    document.querySelectorAll('.auth-tabs button').forEach(b => b.classList.remove('active'));
+    document.getElementById('auth-' + tab).classList.add('active');
+    event.target.classList.add('active');
+  }
+
+  async function doLogin() {
+    const msg  = document.getElementById('l-msg');
+    msg.className = 'msg';
+    const nick = document.getElementById('l-nick').value.trim();
+    const pass = document.getElementById('l-pass').value;
+
+    if (!nick || !pass) { msg.textContent = 'Wypełnij wszystkie pola.'; msg.className = 'msg err'; return; }
+
+    const res  = await fetch(API + '/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nick, password: pass }),
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      currentUser = data;
+      localStorage.setItem('typer_user', JSON.stringify(data));
+      showApp();
+    } else {
+      msg.textContent = data.detail || 'Błąd logowania.';
+      msg.className = 'msg err';
+    }
+  }
+
+  async function doRegister() {
+    const msg   = document.getElementById('r-msg');
+    msg.className = 'msg';
+    const nick  = document.getElementById('r-nick').value.trim();
+    const email = document.getElementById('r-email').value.trim();
+    const pass  = document.getElementById('r-pass').value;
+
+    if (!nick || !email || !pass) { msg.textContent = 'Wypełnij wszystkie pola.'; msg.className = 'msg err'; return; }
+
+    const res  = await fetch(API + '/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nick, email, password: pass }),
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      currentUser = data;
+      localStorage.setItem('typer_user', JSON.stringify(data));
+      showApp();
+    } else {
+      msg.textContent = data.detail || 'Błąd rejestracji.';
+      msg.className = 'msg err';
+    }
+  }
+
+  function logout() {
+    currentUser = null;
+    localStorage.removeItem('typer_user');
+    document.getElementById('app-screen').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'flex';
+  }
+
+  function showApp() {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display = 'block';
+    document.getElementById('header-nick').textContent = currentUser.nick;
+    loadMatches();
+  }
+
+  // --- tab switching ---
+  function showTab(name, e) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    e.target.classList.add('active');
+
+    if (name === 'matches') loadMatches();
+    if (name === 'predict') loadMatchesForSelect();
+    if (name === 'ranking') loadRanking();
+  }
+
+  // --- matches tab ---
+  async function loadMatches() {
+    const res   = await fetch(API + '/matches');
+    const data  = await res.json();
+    const tbody = document.getElementById('matches-body');
+    tbody.innerHTML = data.map(m => `
+      <tr>
+        <td>${m.league}</td>
+        <td>${m.home_team} vs ${m.away_team}</td>
+        <td>${formatDate(m.kickoff_at)}</td>
+        <td>${m.status === 'finished' ? m.home_goals + ' : ' + m.away_goals : '—'}</td>
+        <td><span class="badge ${m.status}">${m.status === 'finished' ? 'Zakończony' : 'Planowany'}</span></td>
+      </tr>`).join('');
+  }
+
+  // --- predict tab ---
+  async function loadMatchesForSelect() {
+    const res  = await fetch(API + '/matches');
+    const data = await res.json();
+    const sel  = document.getElementById('p-match');
+    const scheduled = data.filter(m => m.status === 'scheduled');
+    sel.innerHTML = '<option value="">— wybierz mecz —</option>' +
+      scheduled.map(m =>
+        `<option value="${m.id}">${m.home_team} vs ${m.away_team} (${formatDate(m.kickoff_at)})</option>`
+      ).join('');
+  }
+
+  async function submitPrediction() {
+    const msg = document.getElementById('p-msg');
+    msg.className = 'msg';
+
+    const body = {
+      user_id:   currentUser.id,   // from session — no manual input needed
+      match_id:  parseInt(document.getElementById('p-match').value),
+      pred_home: parseInt(document.getElementById('p-home').value),
+      pred_away: parseInt(document.getElementById('p-away').value),
+    };
+
+    if (!body.match_id || isNaN(body.pred_home) || isNaN(body.pred_away)) {
+      msg.textContent = 'Wybierz mecz i wpisz wynik.';
+      msg.className = 'msg err';
+      return;
+    }
+
+    const res  = await fetch(API + '/predictions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      msg.textContent = `Typ zapisany! Typ: ${data.pred_home}:${data.pred_away}`;
+      msg.className = 'msg ok';
+    } else {
+      msg.textContent = data.detail || 'Błąd.';
+      msg.className = 'msg err';
+    }
+  }
+
+  // --- ranking tab ---
+  async function loadRanking() {
+    const res   = await fetch(API + '/ranking');
+    const data  = await res.json();
+    const tbody = document.getElementById('ranking-body');
+    tbody.innerHTML = data.map((r, i) => `
+      <tr class="${i === 0 ? 'rank-1' : ''}">
+        <td>${i + 1}.</td>
+        <td>${r.nick}${r.user_id === currentUser.id ? ' <span style="color:#e94560">(Ty)</span>' : ''}</td>
+        <td class="pts">${r.total_points} pkt</td>
+      </tr>`).join('');
+  }
+
+  function formatDate(iso) {
+    return new Date(iso).toLocaleString('pl-PL', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  }
+
+  init();
+</script>
+</body>
+</html>

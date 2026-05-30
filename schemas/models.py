@@ -2,6 +2,24 @@ from datetime import datetime
 from pydantic import BaseModel
 
 
+# --- auth ---
+
+class LoginRequest(BaseModel):
+    nick:     str
+    password: str
+
+
+class RegisterRequest(BaseModel):
+    nick:     str
+    email:    str
+    password: str
+
+
+class UserResponse(BaseModel):
+    id:   int
+    nick: str
+
+
 # --- request bodies ---
 
 class PredictionCreate(BaseModel):

@@ -79,6 +79,20 @@ _SQL_GET_USER_BY_ID = """
     WHERE id = %s
 """
 
+# get user by nick — used for login
+_SQL_GET_USER_BY_NICK = """
+    SELECT id, nick, email, password_hash
+    FROM users
+    WHERE nick = %s
+"""
+
+# create new user account
+_SQL_CREATE_USER = """
+    INSERT INTO users (nick, email, password_hash)
+    VALUES (%s, %s, %s)
+    RETURNING id, nick, email
+"""
+
 # --- scoring_rules ---
 
 # get scoring config — default id=1 which is the standard ruleset
@@ -139,6 +153,19 @@ def update_prediction_points(conn, prediction_id: int, points: int) -> None:
     cur = conn.cursor()
     cur.execute(_SQL_UPDATE_PREDICTION_POINTS, (points, prediction_id))
     # no commit here — caller commits after updating all predictions for the match
+
+
+def get_user_by_nick(conn, nick: str) -> dict | None:
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute(_SQL_GET_USER_BY_NICK, (nick,))
+    return cur.fetchone()
+
+
+def create_user(conn, nick: str, email: str, password_hash: str) -> dict:
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute(_SQL_CREATE_USER, (nick, email, password_hash))
+    conn.commit()
+    return cur.fetchone()
 
 
 def get_user_by_id(conn, user_id: int) -> dict | None:
