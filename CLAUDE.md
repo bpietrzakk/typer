@@ -18,6 +18,7 @@ Aplikacja do typowania wyników meczów piłkarskich (Ekstraklasa, Bundesliga, L
 
 - **Baza:** PostgreSQL 16 (w Dockerze)
 - **Język:** Python 3.11+
+- **Menedżer paczek / venv:** `uv` (zależności w `pyproject.toml`, lock w `uv.lock`)
 - **Framework:** FastAPI + uvicorn
 - **Interfejs graficzny:** Swagger UI pod `/docs` (auto-generowany przez FastAPI — spełnia wymóg GUI na 4.0)
 - **Dostęp do DB:** `psycopg2-binary` + jawne SQL-e (bez ORM — chodzi o to, żeby było widać SQL na zaliczeniu i w sprawozdaniu)
@@ -108,7 +109,8 @@ typer/
 ├── README.md
 ├── .env.example
 ├── .gitignore
-├── requirements.txt
+├── pyproject.toml                  # zależności (uv)
+├── uv.lock                         # zamrożone wersje (commit do repo)
 ├── docker-compose.yml              # PostgreSQL
 ├── main.py                         # entry point: tworzy app FastAPI, rejestruje routery
 ├── domain/
@@ -140,6 +142,19 @@ typer/
 
 ---
 
+## Styl komentarzy w kodzie
+
+- Komentarze proste jak dla juniora/mida — krotkie zdania po polsku bez zbednej interpunkcji
+- Opisuja CO i PO CO robi dany blok nie jak
+- Przyklady dobrego komentarza:
+  - `# ladujemy env zeby miec haslo do bazy`
+  - `# sprawdzamy czy mecz jeszcze sie nie zaczal`
+  - `# liczymy punkty dla kazdego typu z tego meczu`
+  - `# jesli brakuje wymaganego pola zwracamy blad`
+- Bez komentarzy w stylu enterprise (`Initialize the connection pool by...`) i bez oczywistych (`i = i + 1  # zwiekszamy i o 1`)
+
+---
+
 ## Konwencje
 
 - Polskie nazwy w odpowiedziach API (komunikaty błędów), **angielskie w kodzie** (zmienne, funkcje, kolumny DB, nazwy endpointów).
@@ -161,19 +176,17 @@ docker compose up -d
 psql -h localhost -U typer -d typer -f db/migrations/001_init.sql
 psql -h localhost -U typer -d typer -f db/migrations/002_seed.sql
 
-# 3. środowisko Pythona
-python -m venv venv
-source venv/bin/activate          # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+# 3. środowisko Pythona (uv samo tworzy .venv i instaluje paczki z pyproject.toml + uv.lock)
+uv sync
 
 # 4. aplikacja
-uvicorn main:app --reload
+uv run uvicorn main:app --reload
 
 # 5. interfejs graficzny (Swagger UI)
 # otwórz w przeglądarce: http://localhost:8000/docs
 
 # 6. testy
-pytest
+uv run pytest
 ```
 
 ---
