@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard] # serwer na ktorym odpalam fastapi
+psycopg2-binary # sterownik do PostgreSQL (binary - bez kompilacji)
+python-dotenv # wczytuje .env do os.eniron
+pytest
+httpx # TestClient dla FastAPI
+ruff # linter / formatter

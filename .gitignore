@@ -18,9 +18,9 @@ venv/
 .DS_Store
 Thumbs.db
 
-# Streamlit
-.streamlit/secrets.toml
-
 # Bazy lokalne
 *.sqlite
 *.db
+
+# claude
+.claude/

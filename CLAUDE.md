@@ -1,16 +1,16 @@
 # Typer Ligowy
 
-Aplikacja do typowania wyników meczów piłkarskich (Ekstraklasa, Bundesliga, Liga Mistrzów) z systemem punktacji i rankingiem. Projekt zaliczeniowy z baz danych — własny schemat (5–9 tabel) + interfejs graficzny.
+Aplikacja do typowania wyników meczów piłkarskich (Ekstraklasa, Bundesliga, Liga Mistrzów) z systemem punktacji i rankingiem. Projekt zaliczeniowy z baz danych — własny schemat (5–9 tabel) + interfejs graficzny (FastAPI + Swagger UI).
 
 ---
 
 ## ŻELAZNE ZASADY (czytaj na początku każdej sesji)
 
-1. **Funkcja punktująca jest czysta** — bez bazy, bez UI, bez side effects. Mieszka w `domain/scoring.py`. Każda zmiana logiki = nowe asercje w `tests/test_scoring.py` **przed** zmianą implementacji.
-2. **Warstwy się nie krzyżują.** Logika domenowa nie importuje `streamlit` ani `psycopg2`. UI nie wykonuje SQL — chodzi przez funkcje z `db/`.
+1. **Funkcja punktująca jest czysta** — bez bazy, bez HTTP, bez side effects. Mieszka w `domain/scoring.py`. Każda zmiana logiki = nowe asercje w `tests/test_scoring.py` **przed** zmianą implementacji.
+2. **Warstwy się nie krzyżują.** Logika domenowa nie importuje `fastapi` ani `psycopg2`. Routery nie wykonują SQL — chodzą przez funkcje z `db/`.
 3. **Sekrety przez `.env`** (hasło do bazy, w przyszłości klucze API). NIGDY w kodzie ani w repo. `.env` jest w `.gitignore`, `.env.example` w repo.
 4. **Migracje schematu są wersjonowane** w `db/migrations/NNN_nazwa.sql`. Zmieniasz schemat → nowy plik migracji, nie edytuj wcześniejszych.
-5. **Małe kroki.** Jedno zadanie z MVP-checklisty naraz. Po skończeniu — odpal, sprawdź, dopiero potem następne.
+5. **Małe kroki.** Jedno zadanie z MVP-checklisty naraz. Po skończeniu — odpal, sprawdź w `/docs`, dopiero potem następne.
 
 ---
 
@@ -18,9 +18,11 @@ Aplikacja do typowania wyników meczów piłkarskich (Ekstraklasa, Bundesliga, L
 
 - **Baza:** PostgreSQL 16 (w Dockerze)
 - **Język:** Python 3.11+
-- **UI:** Streamlit
+- **Framework:** FastAPI + uvicorn
+- **Interfejs graficzny:** Swagger UI pod `/docs` (auto-generowany przez FastAPI — spełnia wymóg GUI na 4.0)
 - **Dostęp do DB:** `psycopg2-binary` + jawne SQL-e (bez ORM — chodzi o to, żeby było widać SQL na zaliczeniu i w sprawozdaniu)
-- **Testy:** pytest
+- **Walidacja danych:** Pydantic (wbudowany w FastAPI)
+- **Testy:** pytest + httpx (TestClient dla FastAPI)
 - **Format/lint:** ruff
 
 ---
@@ -59,7 +61,7 @@ Wartości punktów są **konfigurowalne** — trzymane w tabeli `scoring_rules`.
 
 ## Reguły biznesowe — Deadline typowania
 
-- Typ można dodać/edytować **tylko jeśli `kickoff_at > teraz`**. Po rozpoczęciu meczu UI blokuje formularz, a walidacja w warstwie domenowej dodatkowo odrzuca taki zapis (defense in depth).
+- Typ można dodać **tylko jeśli `kickoff_at > teraz`**. Walidacja w warstwie domenowej odrzuca zapis po starcie meczu — router tylko przekazuje błąd do klienta (HTTP 409).
 - Mecz ma status: `scheduled` → `finished`. Tylko `finished` ma wpisane `home_goals`/`away_goals`.
 - Operacja "ustaw wynik meczu" przelicza punkty wszystkim typom danego meczu i zmienia status na `finished`. Jedna funkcja w `domain/match_results.py` — to jedyne miejsce, w którym powstaje `points_awarded`.
 
@@ -68,16 +70,18 @@ Wartości punktów są **konfigurowalne** — trzymane w tabeli `scoring_rules`.
 ## Architektura — warstwy
 
 ```
-UI (Streamlit, ui/)
+HTTP Client (przeglądarka / Swagger UI / Postman)
+   ↓
+REST API (FastAPI, routers/)     ← przyjmuje request, zwraca response, nic więcej
    ↓ wywołuje
-Logika domenowa (domain/)        ← czysta, testowana, przenośna do Javy
+Logika domenowa (domain/)        ← czysta, testowana, przenośna do Javy/Spring
    ↓ używa
 Dostęp do danych (db/)            ← funkcje opakowujące SQL
    ↓
 PostgreSQL
 ```
 
-UI nigdy nie sięga do `db/` z pominięciem `domain/`. To pozwoli później wystawić REST API (np. w Spring Boot) na tej samej warstwie domenowej.
+Routery nie znają SQL. Domena nie zna HTTP. Dzięki temu późniejsze przepisanie routerów na Spring Boot nie rusza logiki domenowej.
 
 ---
 
@@ -105,38 +109,45 @@ typer/
 ├── .env.example
 ├── .gitignore
 ├── requirements.txt
-├── docker-compose.yml          # PostgreSQL
-├── app.py                      # entry point Streamlit
+├── docker-compose.yml              # PostgreSQL
+├── main.py                         # entry point: tworzy app FastAPI, rejestruje routery
 ├── domain/
 │   ├── __init__.py
-│   ├── scoring.py              # CZYSTA funkcja punktująca
-│   ├── match_results.py        # ustaw wynik + przelicz punkty
-│   └── predictions.py          # walidacja deadline'u
+│   ├── scoring.py                  # CZYSTA funkcja punktująca
+│   ├── match_results.py            # ustaw wynik + przelicz punkty
+│   └── predictions.py              # walidacja deadline'u
 ├── db/
 │   ├── __init__.py
-│   ├── connection.py           # pool / get_conn()
-│   ├── queries.py              # parametryzowane SQL-e
+│   ├── connection.py               # get_conn() / connection pool
+│   ├── queries.py                  # parametryzowane SQL-e jako stałe
 │   └── migrations/
 │       ├── 001_init.sql
 │       └── 002_seed.sql
-├── ui/
-│   ├── matches_view.py         # ekran typowania
-│   ├── ranking_view.py
-│   └── admin_view.py           # wpisywanie wyników
+├── routers/
+│   ├── __init__.py
+│   ├── matches.py                  # GET /matches, GET /matches/{id}
+│   ├── predictions.py              # POST /predictions
+│   ├── ranking.py                  # GET /ranking
+│   └── admin.py                    # POST /matches/{id}/result
+├── schemas/
+│   ├── __init__.py
+│   └── models.py                   # Pydantic modele request/response
 └── tests/
-    ├── test_scoring.py
-    └── test_predictions.py
+    ├── test_scoring.py             # unit testy funkcji punktującej
+    ├── test_predictions.py         # unit testy walidacji deadline'u
+    └── test_api.py                 # testy endpointów przez httpx TestClient
 ```
 
 ---
 
 ## Konwencje
 
-- Polskie nazwy w UI (etykiety, komunikaty), **angielskie w kodzie** (zmienne, funkcje, kolumny DB).
+- Polskie nazwy w odpowiedziach API (komunikaty błędów), **angielskie w kodzie** (zmienne, funkcje, kolumny DB, nazwy endpointów).
 - `snake_case` w Pythonie i SQL.
-- Funkcje w `domain/` — pure, bez I/O. Cały I/O robi `db/` i `ui/`.
+- Funkcje w `domain/` — pure, bez I/O. Cały I/O robi `db/` i `routers/`.
 - SQL trzymany w `db/queries.py` jako stałe stringi, parametryzowany przez `%s` (NIGDY f-stringi z danymi użytkownika — SQL injection).
-- Importy: `domain` nie importuje z `db` ani `ui`. `db` nie importuje z `ui`.
+- Pydantic schema dla każdego request body i response — definiowane w `schemas/models.py`.
+- Importy: `domain` nie importuje z `db` ani `routers`. `db` nie importuje z `routers`.
 
 ---
 
@@ -156,9 +167,12 @@ source venv/bin/activate          # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 # 4. aplikacja
-streamlit run app.py
+uvicorn main:app --reload
 
-# 5. testy
+# 5. interfejs graficzny (Swagger UI)
+# otwórz w przeglądarce: http://localhost:8000/docs
+
+# 6. testy
 pytest
 ```
 
@@ -168,9 +182,11 @@ pytest
 
 - [ ] Schemat z 7-8 tabelami + skrypt seed (jedna kolejka meczów, 3-4 userów, kilka typów).
 - [ ] Funkcja `oblicz_punkty(pred_home, pred_away, real_home, real_away, rules) -> int` w `domain/scoring.py`, z 8 testami z tabeli wyżej.
-- [ ] Ekran w Streamlit: lista nadchodzących meczów + formularz typu (zablokowany po kickoffie).
-- [ ] Ekran rankingu: tabela userów posortowana po sumie punktów (z możliwością filtrowania po lidze).
-- [ ] Panel admina: wpisz wynik meczu → automatyczne przeliczenie punktów wszystkim typom.
+- [ ] `GET /matches` — lista meczów z ich statusem.
+- [ ] `POST /predictions` — dodaj typ (HTTP 409 jeśli mecz już się zaczął).
+- [ ] `GET /ranking` — tabela userów posortowana po sumie punktów.
+- [ ] `POST /matches/{id}/result` — admin: wpisz wynik → automatyczne przeliczenie punktów wszystkim typom.
+- [ ] Wszystko testowalne przez Swagger UI pod `/docs`.
 - [ ] `README.md` z opisem uruchomienia + diagram ER (np. dbdiagram.io) do sprawozdania.
 
 ---
@@ -178,7 +194,7 @@ pytest
 ## Workflow z Claude Code
 
 - **Plan mode** (`Shift+Tab` dwa razy) dla każdego zadania, które dotyka > 1 pliku. Przeczytaj plan, popraw jeśli trzeba, dopiero wtedy zatwierdź.
-- Jedno zadanie z MVP-checklisty naraz. Po każdym — odpal, kliknij ręcznie, dopiero potem następne.
+- Jedno zadanie z MVP-checklisty naraz. Po każdym — odpal, przetestuj endpoint w `/docs`, dopiero potem następne.
 - Zmiana logiki punktacji = **najpierw test, potem implementacja**.
 - Po większym kawałku poproś o wytłumaczenie diffa ("czemu tak, jakie kompromisy") — to mój sposób na naukę, nie pomijaj tego.
 - `/clear` między zupełnie różnymi zadaniami, żeby kontekst nie zaśmiecał.
@@ -187,8 +203,8 @@ pytest
 
 ## Co NIE wchodzi w MVP (zaplanowane do "rozwijania" później)
 
-- Logowanie/rejestracja (na razie userzy ustawiani w seedzie).
+- Logowanie/rejestracja i JWT (na razie `user_id` przekazywany w request body).
 - Auto-pobieranie wyników z football-data.org API.
 - Prywatne ligi z kodem dołączania (schemat już to przewiduje).
-- Wykresy, statystyki historyczne, widok per-kolejka.
-- REST API wystawione z `domain/` (kandydat na przepisanie do Spring Boot w Javie).
+- Statystyki historyczne, per-kolejka, wykresy.
+- Przepisanie routerów na Spring Boot/Java (logika domenowa zostaje bez zmian).

@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16
+    container_name: typer_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-typer}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-typer}
+      POSTGRES_DB: ${POSTGRES_DB:-typer}
+    ports:
+      - "5432:5432"
+    volumes:
+      - typer_db_data:/var/lib/postgresql/data
+
+volumes:
+  typer_db_data:
