@@ -2,7 +2,7 @@ from psycopg2.extras import RealDictCursor
 
 # --- matches ---
 
-# pobieramy wszystkie mecze z nazwami druzyn i ligi zamiast samych id
+# get all matches with team and league names instead of raw ids
 _SQL_GET_ALL_MATCHES = """
     SELECT
         m.id,
@@ -20,7 +20,7 @@ _SQL_GET_ALL_MATCHES = """
     ORDER BY m.kickoff_at
 """
 
-# pobieramy jeden mecz po id — uzywamy przy walidacji i wpisywaniu wyniku
+# get single match by id — used for validation and setting result
 _SQL_GET_MATCH_BY_ID = """
     SELECT
         m.id,
@@ -38,7 +38,7 @@ _SQL_GET_MATCH_BY_ID = """
     WHERE m.id = %s
 """
 
-# ustawiamy wynik meczu i zmieniamy status na finished
+# set match result and mark as finished
 _SQL_SET_MATCH_RESULT = """
     UPDATE matches
     SET home_goals = %s,
@@ -49,21 +49,21 @@ _SQL_SET_MATCH_RESULT = """
 
 # --- predictions ---
 
-# wstawiamy nowy typ uzytkownika
+# insert a new prediction for a user
 _SQL_CREATE_PREDICTION = """
     INSERT INTO predictions (user_id, match_id, pred_home, pred_away)
     VALUES (%s, %s, %s, %s)
     RETURNING *
 """
 
-# pobieramy wszystkie typy dla danego meczu — uzywamy przy przeliczaniu punktow
+# get all predictions for a match — used when recalculating points after result is set
 _SQL_GET_PREDICTIONS_FOR_MATCH = """
     SELECT id, user_id, pred_home, pred_away, points_awarded
     FROM predictions
     WHERE match_id = %s
 """
 
-# aktualizujemy punkty dla jednego typu po wpisaniu wyniku meczu
+# update points for a single prediction after match result is set
 _SQL_UPDATE_PREDICTION_POINTS = """
     UPDATE predictions
     SET points_awarded = %s
@@ -72,7 +72,7 @@ _SQL_UPDATE_PREDICTION_POINTS = """
 
 # --- users ---
 
-# sprawdzamy czy user o danym id istnieje przed zapisem typu
+# check if user exists before saving a prediction
 _SQL_GET_USER_BY_ID = """
     SELECT id, nick, email
     FROM users
@@ -81,7 +81,7 @@ _SQL_GET_USER_BY_ID = """
 
 # --- scoring_rules ---
 
-# pobieramy konfiguracje punktow — domyslnie id=1 czyli standardowe reguly
+# get scoring config — default id=1 which is the standard ruleset
 _SQL_GET_SCORING_RULES = """
     SELECT id, name, exact_pts, diff_pts, tendency_pts
     FROM scoring_rules
@@ -90,7 +90,7 @@ _SQL_GET_SCORING_RULES = """
 
 # --- ranking ---
 
-# liczymy sume punktow dla kazdego usera ze skonczonych meczy
+# sum points per user from finished matches only
 _SQL_GET_RANKING = """
     SELECT
         u.id   AS user_id,
@@ -103,10 +103,6 @@ _SQL_GET_RANKING = """
     ORDER BY total_points DESC
 """
 
-
-# =============================================================================
-# funkcje publiczne
-# =============================================================================
 
 def get_all_matches(conn) -> list:
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -142,7 +138,7 @@ def get_predictions_for_match(conn, match_id: int) -> list:
 def update_prediction_points(conn, prediction_id: int, points: int) -> None:
     cur = conn.cursor()
     cur.execute(_SQL_UPDATE_PREDICTION_POINTS, (points, prediction_id))
-    # nie commitujemy tutaj — commit robi wywolujacy po przeliczeniu wszystkich typow
+    # no commit here — caller commits after updating all predictions for the match
 
 
 def get_user_by_id(conn, user_id: int) -> dict | None:

@@ -144,14 +144,14 @@ typer/
 
 ## Styl komentarzy w kodzie
 
-- Komentarze proste jak dla juniora/mida — krotkie zdania po polsku bez zbednej interpunkcji
+- Komentarze proste jak dla juniora/mida — krotkie zdania **po angielsku** bez zbednej interpunkcji
 - Opisuja CO i PO CO robi dany blok nie jak
 - Przyklady dobrego komentarza:
-  - `# ladujemy env zeby miec haslo do bazy`
-  - `# sprawdzamy czy mecz jeszcze sie nie zaczal`
-  - `# liczymy punkty dla kazdego typu z tego meczu`
-  - `# jesli brakuje wymaganego pola zwracamy blad`
-- Bez komentarzy w stylu enterprise (`Initialize the connection pool by...`) i bez oczywistych (`i = i + 1  # zwiekszamy i o 1`)
+  - `# load env to get db password`
+  - `# check if match has not started yet`
+  - `# calculate points for every prediction of this match`
+  - `# if required field is missing return error`
+- Bez komentarzy w stylu enterprise (`Initialize the connection pool by...`) i bez oczywistych (`i = i + 1  # increment i by 1`)
 
 ---
 
