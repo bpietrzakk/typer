@@ -125,3 +125,6 @@ INSERT INTO predictions (user_id, match_id, pred_home, pred_away, points_awarded
 
 -- ranking: bartek=21, wiktor=17, daniel=14, bartosz=12, mateusz=10, sebastian=7, kamil=5
 -- scheduled matches have no seeded predictions — users add their own through the API
+
+-- bartek is the admin
+UPDATE users SET is_admin = TRUE WHERE nick = 'bartek';

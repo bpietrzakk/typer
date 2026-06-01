@@ -24,7 +24,7 @@ def login(body: LoginRequest):
         if not user or user["password_hash"] != hash_password(body.password):
             raise HTTPException(status_code=401, detail="Nieprawidłowy login lub hasło")
 
-        return {"id": user["id"], "nick": user["nick"]}
+        return {"id": user["id"], "nick": user["nick"], "is_admin": user["is_admin"]}
     finally:
         release_conn(conn)
 
@@ -39,6 +39,6 @@ def register(body: RegisterRequest):
             raise HTTPException(status_code=409, detail="Login jest już zajęty")
 
         user = create_user(conn, body.nick, body.email, hash_password(body.password))
-        return user
+        return {"id": user["id"], "nick": user["nick"], "is_admin": user["is_admin"]}
     finally:
         release_conn(conn)

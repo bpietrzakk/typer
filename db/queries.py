@@ -98,14 +98,14 @@ _SQL_UPDATE_PREDICTION_POINTS = """
 
 # check if user exists before saving a prediction
 _SQL_GET_USER_BY_ID = """
-    SELECT id, nick, email
+    SELECT id, nick, email, is_admin
     FROM users
     WHERE id = %s
 """
 
 # get user by nick — used for login
 _SQL_GET_USER_BY_NICK = """
-    SELECT id, nick, email, password_hash
+    SELECT id, nick, email, password_hash, is_admin
     FROM users
     WHERE nick = %s
 """
@@ -114,7 +114,7 @@ _SQL_GET_USER_BY_NICK = """
 _SQL_CREATE_USER = """
     INSERT INTO users (nick, email, password_hash)
     VALUES (%s, %s, %s)
-    RETURNING id, nick, email
+    RETURNING id, nick, email, is_admin
 """
 
 # --- scoring_rules ---

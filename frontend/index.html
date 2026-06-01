@@ -202,7 +202,7 @@
     <button onclick="showTab('predict', event)">Dodaj typ</button>
     <button onclick="showTab('myPredictions', event)">Moje typy</button>
     <button onclick="showTab('ranking', event)">Ranking</button>
-    <button onclick="showTab('admin', event)">Admin</button>
+    <button id="nav-admin" onclick="showTab('admin', event)" style="display:none">Admin</button>
   </nav>
 
   <main>
@@ -367,6 +367,7 @@
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('app-screen').style.display = 'block';
     document.getElementById('header-nick').textContent = currentUser.nick;
+    document.getElementById('nav-admin').style.display = currentUser.is_admin ? '' : 'none';
     loadMatches();
   }
 
@@ -532,7 +533,7 @@
     const res  = await fetch(API + '/matches/' + matchId + '/result', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ home_goals: homeGoals, away_goals: awayGoals }),
+      body: JSON.stringify({ user_id: currentUser.id, home_goals: homeGoals, away_goals: awayGoals }),
     });
     const data = await res.json();
 

@@ -9,6 +9,7 @@ CREATE TABLE users (
     nick          TEXT(50)  NOT NULL,
     email         TEXT(255) NOT NULL,
     password_hash TEXT(64)  NOT NULL,
+    is_admin      YESNO     NOT NULL,
     created_at    DATETIME  DEFAULT Now(),
     CONSTRAINT uq_users_nick  UNIQUE (nick),
     CONSTRAINT uq_users_email UNIQUE (email)

@@ -16,8 +16,9 @@ class RegisterRequest(BaseModel):
 
 
 class UserResponse(BaseModel):
-    id:   int
-    nick: str
+    id:       int
+    nick:     str
+    is_admin: bool
 
 
 # --- request bodies ---
@@ -30,6 +31,7 @@ class PredictionCreate(BaseModel):
 
 
 class MatchResultRequest(BaseModel):
+    user_id:    int
     home_goals: int
     away_goals: int
 

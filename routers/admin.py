@@ -5,6 +5,7 @@ from db.queries import (
     get_match_by_id,
     get_predictions_for_match,
     get_scoring_rules,
+    get_user_by_id,
     set_match_result,
     update_prediction_points,
 )
@@ -18,6 +19,11 @@ router = APIRouter()
 def set_result(match_id: int, body: MatchResultRequest):
     conn = get_conn()
     try:
+        # check if caller is an admin
+        user = get_user_by_id(conn, body.user_id)
+        if not user or not user["is_admin"]:
+            raise HTTPException(status_code=403, detail="Brak uprawnień administratora")
+
         # check if match exists
         match = get_match_by_id(conn, match_id)
         if not match:
