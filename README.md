@@ -11,6 +11,15 @@ Projekt zaliczeniowy z przedmiotu Bazy Danych.
 
 Typer Ligowy pozwala użytkownikom typować wyniki meczów piłkarskich (Ekstraklasa, Bundesliga, Liga Mistrzów). Po zakończeniu meczu system automatycznie przelicza punkty dla wszystkich uczestników i aktualizuje ranking.
 
+
+<img width="3420" height="1904" alt="image" src="https://github.com/user-attachments/assets/7b87d92a-8619-420b-a314-849d5d1c2603" />
+<img width="3420" height="1902" alt="image" src="https://github.com/user-attachments/assets/9f3bb4da-a17f-46ef-aaf6-6827c04ab06d" />
+<img width="3420" height="1906" alt="image" src="https://github.com/user-attachments/assets/e7eae6e8-9307-438d-9ac5-3bd4f695b021" />
+<img width="3420" height="1906" alt="image" src="https://github.com/user-attachments/assets/21f24969-3be6-4b4a-97fd-59b186664ce3" />
+
+
+
+
 ## Technologie
 
 | Warstwa | Technologia |
