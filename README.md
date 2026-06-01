@@ -16,6 +16,7 @@ Typer Ligowy pozwala użytkownikom typować wyniki meczów piłkarskich (Ekstrak
 | Warstwa       | Technologia                              |
 |---------------|------------------------------------------|
 | Baza danych   | PostgreSQL 16                            |
+| Baza NoSQL    | MongoDB 7                                |
 | Backend       | Python 3.11+, FastAPI, uvicorn           |
 | Dostęp do DB  | psycopg2 (jawne SQL, bez ORM)            |
 | Walidacja     | Pydantic                                 |
@@ -28,9 +29,10 @@ Typer Ligowy pozwala użytkownikom typować wyniki meczów piłkarskich (Ekstrak
 - Rejestracja i logowanie (SHA-256, sesja w localStorage)
 - Przeglądanie listy meczów z ich statusem i wynikami
 - Typowanie wyników — tylko przed rozpoczęciem meczu (walidacja po stronie serwera)
+- Usuwanie własnego typu — tylko jeśli mecz jeszcze się nie zaczął
 - Zakładka „Moje typy" — historia typów z kolorowym wskaźnikiem punktów
 - Ranking graczy na żywo
-- Panel admina — wpisanie rzeczywistego wyniku meczu + automatyczne przeliczenie punktów dla wszystkich typujących
+- Panel admina — dodawanie nadchodzących meczów, wpisywanie wyników i usuwanie zakończonych meczów
 
 ## System punktacji
 
@@ -58,20 +60,13 @@ cd typer
 # 2. utwórz plik .env na podstawie przykładu
 cp .env.example .env
 
-# 3. uruchom bazę danych (PostgreSQL w kontenerze)
-docker compose up -d
+# 3. uruchom bazę danych i zastosuj migracje (skrypt automatyczny)
+bash db/reset_db.sh
 
-# 4. uruchom migracje i dane testowe
-psql -h localhost -U typer -d typer -f db/migrations/001_init.sql
-psql -h localhost -U typer -d typer -f db/migrations/002_seed.sql
-psql -h localhost -U typer -d typer -f db/migrations/003_add_auth.sql
-psql -h localhost -U typer -d typer -f db/migrations/004_reseed.sql
-psql -h localhost -U typer -d typer -f db/migrations/005_fix_ranking.sql
-
-# 5. zainstaluj zależności Python
+# 4. zainstaluj zależności Python
 uv sync
 
-# 6. uruchom aplikację
+# 5. uruchom aplikację
 uv run uvicorn main:app --reload
 ```
 
@@ -79,13 +74,19 @@ Aplikacja dostępna pod:
 - **Frontend:** http://localhost:8000
 - **Swagger UI (API):** http://localhost:8000/docs
 
+### Synchronizacja z MongoDB (opcjonalnie)
+
+```bash
+uv run python db/mongo_seed.py
+```
+
 ## Konta testowe
 
-Hasło = login dla każdego konta.
+Hasło = login dla każdego konta. Konto `bartek` ma uprawnienia admina.
 
 | Login     | Punkty |
 |-----------|--------|
-| bartek    | 21     |
+| bartek ⭐ | 21     |
 | wiktor    | 17     |
 | daniel    | 14     |
 | bartosz   | 12     |
@@ -97,20 +98,25 @@ Hasło = login dla każdego konta.
 
 ## Endpointy API
 
-| Metoda | Ścieżka                | Opis                                          |
-|--------|------------------------|-----------------------------------------------|
-| POST   | `/auth/login`          | Logowanie                                     |
-| POST   | `/auth/register`       | Rejestracja                                   |
-| GET    | `/matches`             | Lista wszystkich meczów                       |
-| GET    | `/matches/{id}`        | Szczegóły meczu                               |
-| POST   | `/predictions`         | Dodaj typ (tylko przed startem meczu)         |
-| GET    | `/predictions/user/{id}` | Typy konkretnego użytkownika               |
-| GET    | `/ranking`             | Ranking graczy                                |
-| POST   | `/matches/{id}/result` | Wpisz wynik + automatyczne przeliczenie punktów |
+| Metoda | Ścieżka                    | Opis                                              |
+|--------|----------------------------|---------------------------------------------------|
+| POST   | `/auth/login`              | Logowanie                                         |
+| POST   | `/auth/register`           | Rejestracja                                       |
+| GET    | `/matches`                 | Lista wszystkich meczów                           |
+| GET    | `/matches/{id}`            | Szczegóły meczu                                   |
+| GET    | `/leagues`                 | Lista lig                                         |
+| GET    | `/teams`                   | Lista drużyn                                      |
+| POST   | `/predictions`             | Dodaj typ (tylko przed startem meczu)             |
+| DELETE | `/predictions/{id}`        | Usuń swój typ (tylko przed startem meczu)         |
+| GET    | `/predictions/user/{id}`   | Typy konkretnego użytkownika                      |
+| GET    | `/ranking`                 | Ranking graczy                                    |
+| POST   | `/matches`                 | Admin: dodaj nowy mecz                            |
+| DELETE | `/matches/{id}`            | Admin: usuń zakończony mecz                       |
+| POST   | `/matches/{id}/result`     | Admin: wpisz wynik + automatyczne przeliczenie    |
 
 ## Struktura bazy danych
 
-8 tabel: `users`, `leagues`, `teams`, `matches`, `predictions`, `scoring_rules`, `private_leagues`, `private_league_members`
+6 tabel: `users`, `leagues`, `teams`, `matches`, `predictions`, `scoring_rules`
 
 Ranking to zapytanie agregujące — nie osobna tabela:
 ```sql
@@ -134,13 +140,17 @@ typer/
 ├── db/
 │   ├── connection.py        # pula połączeń psycopg2
 │   ├── queries.py           # wszystkie SQL-e jako stałe
-│   └── migrations/          # wersjonowane migracje schematu
+│   ├── migrations/          # wersjonowane migracje schematu
+│   │   ├── 001_init.sql
+│   │   └── 002_seed.sql
+│   ├── reset_db.sh          # skrypt czyszczący i inicjalizujący bazę
+│   └── mongo_seed.py        # synchronizacja danych do MongoDB
 ├── routers/
 │   ├── auth.py              # POST /auth/login, /auth/register
-│   ├── matches.py           # GET /matches, /matches/{id}
-│   ├── predictions.py       # POST /predictions, GET /predictions/user/{id}
+│   ├── matches.py           # GET /matches, /leagues, /teams
+│   ├── predictions.py       # POST + DELETE /predictions
 │   ├── ranking.py           # GET /ranking
-│   └── admin.py             # POST /matches/{id}/result
+│   └── admin.py             # admin: dodaj/usuń mecz, wpisz wynik
 ├── schemas/
 │   └── models.py            # Pydantic modele request/response
 ├── frontend/
@@ -178,6 +188,7 @@ Typer Ligowy lets users predict football match results (Ekstraklasa, Bundesliga,
 | Layer        | Technology                              |
 |--------------|-----------------------------------------|
 | Database     | PostgreSQL 16                           |
+| NoSQL        | MongoDB 7                               |
 | Backend      | Python 3.11+, FastAPI, uvicorn          |
 | DB access    | psycopg2 (raw SQL, no ORM)              |
 | Validation   | Pydantic                                |
@@ -190,9 +201,10 @@ Typer Ligowy lets users predict football match results (Ekstraklasa, Bundesliga,
 - User registration and login (SHA-256, session in localStorage)
 - Match list with status and results
 - Match predictions — only allowed before kickoff (server-side validation)
+- Delete own prediction — only before kickoff
 - "My predictions" tab — prediction history with colored point badges
 - Live player leaderboard
-- Admin panel — enter match result and automatically recalculate points for all predictions
+- Admin panel — add upcoming matches, enter results, delete finished matches
 
 ## Scoring System
 
@@ -220,20 +232,13 @@ cd typer
 # 2. create .env from the example
 cp .env.example .env
 
-# 3. start the database (PostgreSQL in Docker)
-docker compose up -d
+# 3. start the database and apply migrations (automated script)
+bash db/reset_db.sh
 
-# 4. run migrations and seed data
-psql -h localhost -U typer -d typer -f db/migrations/001_init.sql
-psql -h localhost -U typer -d typer -f db/migrations/002_seed.sql
-psql -h localhost -U typer -d typer -f db/migrations/003_add_auth.sql
-psql -h localhost -U typer -d typer -f db/migrations/004_reseed.sql
-psql -h localhost -U typer -d typer -f db/migrations/005_fix_ranking.sql
-
-# 5. install Python dependencies
+# 4. install Python dependencies
 uv sync
 
-# 6. start the app
+# 5. start the app
 uv run uvicorn main:app --reload
 ```
 
@@ -241,38 +246,49 @@ App available at:
 - **Frontend:** http://localhost:8000
 - **Swagger UI (API):** http://localhost:8000/docs
 
+### MongoDB sync (optional)
+
+```bash
+uv run python db/mongo_seed.py
+```
+
 ## Test Accounts
 
-Password = username for every account.
+Password = username for every account. `bartek` has admin privileges.
 
-| Username  | Points |
-|-----------|--------|
-| bartek    | 21     |
-| wiktor    | 17     |
-| daniel    | 14     |
-| bartosz   | 12     |
-| mateusz   | 10     |
-| sebastian | 7      |
-| kamil     | 5      |
-| konrad    | 0      |
-| nikodem   | 0      |
+| Username   | Points |
+|------------|--------|
+| bartek ⭐  | 21     |
+| wiktor     | 17     |
+| daniel     | 14     |
+| bartosz    | 12     |
+| mateusz    | 10     |
+| sebastian  | 7      |
+| kamil      | 5      |
+| konrad     | 0      |
+| nikodem    | 0      |
 
 ## API Endpoints
 
-| Method | Path                   | Description                                    |
-|--------|------------------------|------------------------------------------------|
-| POST   | `/auth/login`          | Log in                                         |
-| POST   | `/auth/register`       | Create account                                 |
-| GET    | `/matches`             | List all matches                               |
-| GET    | `/matches/{id}`        | Match details                                  |
-| POST   | `/predictions`         | Add prediction (only before kickoff)           |
-| GET    | `/predictions/user/{id}` | Predictions for a specific user             |
-| GET    | `/ranking`             | Player leaderboard                             |
-| POST   | `/matches/{id}/result` | Set result + auto-calculate points             |
+| Method | Path                       | Description                                    |
+|--------|----------------------------|------------------------------------------------|
+| POST   | `/auth/login`              | Log in                                         |
+| POST   | `/auth/register`           | Create account                                 |
+| GET    | `/matches`                 | List all matches                               |
+| GET    | `/matches/{id}`            | Match details                                  |
+| GET    | `/leagues`                 | List leagues                                   |
+| GET    | `/teams`                   | List teams                                     |
+| POST   | `/predictions`             | Add prediction (only before kickoff)           |
+| DELETE | `/predictions/{id}`        | Delete own prediction (only before kickoff)    |
+| GET    | `/predictions/user/{id}`   | Predictions for a specific user                |
+| GET    | `/ranking`                 | Player leaderboard                             |
+| POST   | `/matches`                 | Admin: add new match                           |
+| DELETE | `/matches/{id}`            | Admin: delete finished match                   |
+| POST   | `/matches/{id}/result`     | Admin: set result + auto-calculate points      |
 
 ## Database Schema
 
-8 tables: `users`, `leagues`, `teams`, `matches`, `predictions`, `scoring_rules`, `private_leagues`, `private_league_members`
+6 tables: `users`, `leagues`, `teams`, `matches`, `predictions`, `scoring_rules`
 
 The leaderboard is an aggregate query — not a separate table:
 ```sql
@@ -296,13 +312,17 @@ typer/
 ├── db/
 │   ├── connection.py        # psycopg2 connection pool
 │   ├── queries.py           # all SQL as string constants
-│   └── migrations/          # versioned schema migrations
+│   ├── migrations/          # versioned schema migrations
+│   │   ├── 001_init.sql
+│   │   └── 002_seed.sql
+│   ├── reset_db.sh          # wipe and reinitialize the database
+│   └── mongo_seed.py        # sync PostgreSQL data to MongoDB
 ├── routers/
 │   ├── auth.py              # POST /auth/login, /auth/register
-│   ├── matches.py           # GET /matches, /matches/{id}
-│   ├── predictions.py       # POST /predictions, GET /predictions/user/{id}
+│   ├── matches.py           # GET /matches, /leagues, /teams
+│   ├── predictions.py       # POST + DELETE /predictions
 │   ├── ranking.py           # GET /ranking
-│   └── admin.py             # POST /matches/{id}/result
+│   └── admin.py             # admin: add/delete match, set result
 ├── schemas/
 │   └── models.py            # Pydantic request/response models
 ├── frontend/

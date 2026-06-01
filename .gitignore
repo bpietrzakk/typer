@@ -22,5 +22,9 @@ Thumbs.db
 *.sqlite
 *.db
 
+# Sprawozdanie
+sprawozdanie.docx
+~$rawozdanie.docx
+
 # claude
 .claude/
