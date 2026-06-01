@@ -35,6 +35,14 @@ class MatchResultRequest(BaseModel):
     away_goals: int
 
 
+class MatchCreateRequest(BaseModel):
+    user_id:      int
+    league_id:    int
+    home_team_id: int
+    away_team_id: int
+    kickoff_at:   datetime
+
+
 # --- response models ---
 
 class MatchResponse(BaseModel):

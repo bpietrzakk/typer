@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from psycopg2.errors import UniqueViolation
 
 from db.connection import get_conn, release_conn
-from db.queries import create_prediction, get_match_by_id, get_my_predictions, get_user_by_id
+from db.queries import create_prediction, delete_prediction, get_match_by_id, get_my_predictions, get_prediction_by_id, get_user_by_id
 from domain.predictions import is_prediction_allowed
 from schemas.models import PredictionCreate, PredictionResponse
 
@@ -42,5 +42,27 @@ def add_prediction(body: PredictionCreate):
         except UniqueViolation:
             conn.rollback()
             raise HTTPException(status_code=409, detail="Już dodałeś typ na ten mecz")
+    finally:
+        release_conn(conn)
+
+
+@router.delete("/predictions/{prediction_id}", status_code=204)
+def remove_prediction(prediction_id: int, user_id: int):
+    conn = get_conn()
+    try:
+        prediction = get_prediction_by_id(conn, prediction_id)
+
+        if not prediction:
+            raise HTTPException(status_code=404, detail="Typ nie istnieje")
+
+        # only the owner can delete their prediction
+        if prediction["user_id"] != user_id:
+            raise HTTPException(status_code=403, detail="Nie możesz usunąć cudzego typu")
+
+        # only allowed before match starts
+        if not is_prediction_allowed(prediction["kickoff_at"]):
+            raise HTTPException(status_code=409, detail="Mecz już się rozpoczął, nie można usunąć typu")
+
+        delete_prediction(conn, prediction_id)
     finally:
         release_conn(conn)

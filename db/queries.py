@@ -214,3 +214,51 @@ def get_ranking(conn) -> list:
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(_SQL_GET_RANKING)
     return cur.fetchall()
+
+
+def get_all_leagues(conn) -> list:
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT id, name, country, season FROM leagues ORDER BY id")
+    return cur.fetchall()
+
+
+def get_all_teams(conn) -> list:
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT id, name, short_name, league_id FROM teams ORDER BY league_id, name")
+    return cur.fetchall()
+
+
+def create_match(conn, league_id: int, home_team_id: int, away_team_id: int, kickoff_at) -> dict:
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("""
+        INSERT INTO matches (league_id, home_team_id, away_team_id, kickoff_at)
+        VALUES (%s, %s, %s, %s)
+        RETURNING id
+    """, (league_id, home_team_id, away_team_id, kickoff_at))
+    conn.commit()
+    return cur.fetchone()
+
+
+def delete_match(conn, match_id: int) -> None:
+    cur = conn.cursor()
+    # delete predictions first — no CASCADE in schema
+    cur.execute("DELETE FROM predictions WHERE match_id = %s", (match_id,))
+    cur.execute("DELETE FROM matches WHERE id = %s", (match_id,))
+    conn.commit()
+
+
+def get_prediction_by_id(conn, prediction_id: int) -> dict | None:
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("""
+        SELECT p.id, p.user_id, p.match_id, m.kickoff_at, m.status
+        FROM predictions p
+        JOIN matches m ON p.match_id = m.id
+        WHERE p.id = %s
+    """, (prediction_id,))
+    return cur.fetchone()
+
+
+def delete_prediction(conn, prediction_id: int) -> None:
+    cur = conn.cursor()
+    cur.execute("DELETE FROM predictions WHERE id = %s", (prediction_id,))
+    conn.commit()

@@ -1,10 +1,28 @@
 from fastapi import APIRouter, HTTPException
 
 from db.connection import get_conn, release_conn
-from db.queries import get_all_matches, get_match_by_id
+from db.queries import get_all_leagues, get_all_matches, get_all_teams, get_match_by_id
 from schemas.models import MatchResponse
 
 router = APIRouter()
+
+
+@router.get("/leagues")
+def list_leagues():
+    conn = get_conn()
+    try:
+        return get_all_leagues(conn)
+    finally:
+        release_conn(conn)
+
+
+@router.get("/teams")
+def list_teams():
+    conn = get_conn()
+    try:
+        return get_all_teams(conn)
+    finally:
+        release_conn(conn)
 
 
 @router.get("/matches", response_model=list[MatchResponse])

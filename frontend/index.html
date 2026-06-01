@@ -256,9 +256,10 @@
             <th>Mój typ</th>
             <th>Wynik</th>
             <th>Punkty</th>
+            <th></th>
           </tr>
         </thead>
-        <tbody id="my-predictions-body"><tr><td colspan="6">Ładowanie...</td></tr></tbody>
+        <tbody id="my-predictions-body"><tr><td colspan="7">Ładowanie...</td></tr></tbody>
       </table>
     </div>
 
@@ -275,8 +276,29 @@
 
     <!-- TAB: ADMIN -->
     <div id="tab-admin" class="tab">
-      <h2>Panel admina — wpisz wyniki</h2>
+
+      <h2>Dodaj mecz</h2>
+      <div class="card" style="max-width:520px;margin-bottom:28px">
+        <label>Liga</label>
+        <select id="am-league" onchange="filterAdminTeams()">
+          <option value="">— wybierz ligę —</option>
+        </select>
+        <label>Gospodarz</label>
+        <select id="am-home"><option value="">— wybierz drużynę —</option></select>
+        <label>Gość</label>
+        <select id="am-away"><option value="">— wybierz drużynę —</option></select>
+        <label>Data i godzina (kickoff)</label>
+        <input type="datetime-local" id="am-kickoff" style="margin-bottom:16px" />
+        <button class="submit" onclick="addMatch()">Dodaj mecz</button>
+        <div class="msg" id="am-msg"></div>
+      </div>
+
+      <h2>Wpisz wyniki</h2>
       <div id="admin-body"><p style="color:#888">Ładowanie...</p></div>
+
+      <h2 style="margin-top:28px">Usuń zakończone mecze</h2>
+      <div id="admin-finished"><p style="color:#888">Ładowanie...</p></div>
+
     </div>
 
   </main>
@@ -449,7 +471,7 @@
     const tbody = document.getElementById('my-predictions-body');
 
     if (data.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888">Nie masz jeszcze żadnych typów</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888">Nie masz jeszcze żadnych typów</td></tr>';
       return;
     }
 
@@ -464,6 +486,11 @@
 
       const result = p.status === 'finished' ? `${p.home_goals}:${p.away_goals}` : '—';
 
+      // delete button only for scheduled matches that haven't started yet
+      const deleteBtn = p.status === 'scheduled'
+        ? `<button onclick="deletePrediction(${p.id})" style="background:none;border:1px solid #e94560;color:#e94560;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:0.8rem;">Usuń</button>`
+        : '';
+
       return `<tr>
         <td><strong>${p.home_team}</strong> vs <strong>${p.away_team}</strong></td>
         <td>${p.league}</td>
@@ -471,6 +498,7 @@
         <td>${p.pred_home}:${p.pred_away}</td>
         <td>${result}</td>
         <td>${pointsBadge}</td>
+        <td>${deleteBtn}</td>
       </tr>`;
     }).join('');
   }
@@ -489,31 +517,120 @@
   }
 
   // --- admin tab ---
-  async function loadAdminMatches() {
-    const container = document.getElementById('admin-body');
-    const res  = await fetch(API + '/matches');
-    const data = await res.json();
-    const scheduled = data.filter(m => m.status === 'scheduled');
+  let allTeams = [];
 
-    if (scheduled.length === 0) {
-      container.innerHTML = '<p style="color:#888">Brak zaplanowanych meczów do uzupełnienia.</p>';
-      return;
+  async function loadAdminMatches() {
+    // load leagues and teams for the "add match" form
+    const [leaguesRes, teamsRes, matchesRes] = await Promise.all([
+      fetch(API + '/leagues'),
+      fetch(API + '/teams'),
+      fetch(API + '/matches'),
+    ]);
+    const leagues = await leaguesRes.json();
+    allTeams      = await teamsRes.json();
+    const data    = await matchesRes.json();
+
+    // populate league dropdown
+    const leagueSel = document.getElementById('am-league');
+    leagueSel.innerHTML = '<option value="">— wybierz ligę —</option>' +
+      leagues.map(l => `<option value="${l.id}">${l.name} (${l.season})</option>`).join('');
+
+    filterAdminTeams();
+
+    // scheduled matches — enter results
+    const container = document.getElementById('admin-body');
+    const scheduled = data.filter(m => m.status === 'scheduled');
+    container.innerHTML = scheduled.length === 0
+      ? '<p style="color:#888">Brak zaplanowanych meczów.</p>'
+      : scheduled.map(m => `
+          <div class="admin-match" id="admin-row-${m.id}">
+            <div class="match-label">
+              <strong>${m.home_team} vs ${m.away_team}</strong>
+              <span>${m.league} &bull; ${formatDate(m.kickoff_at)}</span>
+            </div>
+            <div class="goals-inputs">
+              <input type="number" id="ah-${m.id}" min="0" placeholder="0" />
+              <span>:</span>
+              <input type="number" id="aa-${m.id}" min="0" placeholder="0" />
+            </div>
+            <button class="set-btn" onclick="setResult(${m.id})">Wpisz wynik</button>
+            <span class="row-msg" id="amsg-${m.id}"></span>
+          </div>`).join('');
+
+    // finished matches — delete
+    const finished = document.getElementById('admin-finished');
+    const done = data.filter(m => m.status === 'finished');
+    finished.innerHTML = done.length === 0
+      ? '<p style="color:#888">Brak zakończonych meczów.</p>'
+      : done.map(m => `
+          <div class="admin-match" id="del-row-${m.id}">
+            <div class="match-label">
+              <strong>${m.home_team} vs ${m.away_team}</strong>
+              <span>${m.league} &bull; ${formatDate(m.kickoff_at)} &bull; ${m.home_goals}:${m.away_goals}</span>
+            </div>
+            <button class="set-btn" style="background:#721c24" onclick="removeMatch(${m.id})">Usuń</button>
+            <span class="row-msg" id="dmsg-${m.id}"></span>
+          </div>`).join('');
+  }
+
+  function filterAdminTeams() {
+    const leagueId = parseInt(document.getElementById('am-league').value);
+    const filtered = leagueId ? allTeams.filter(t => t.league_id === leagueId) : allTeams;
+    const opts = '<option value="">— wybierz drużynę —</option>' +
+      filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    document.getElementById('am-home').innerHTML = opts;
+    document.getElementById('am-away').innerHTML = opts;
+  }
+
+  async function addMatch() {
+    const msg        = document.getElementById('am-msg');
+    msg.className    = 'msg';
+    const leagueId   = parseInt(document.getElementById('am-league').value);
+    const homeId     = parseInt(document.getElementById('am-home').value);
+    const awayId     = parseInt(document.getElementById('am-away').value);
+    const kickoffRaw = document.getElementById('am-kickoff').value;
+
+    if (!leagueId || !homeId || !awayId || !kickoffRaw) {
+      msg.textContent = 'Wypełnij wszystkie pola.'; msg.className = 'msg err'; return;
+    }
+    if (homeId === awayId) {
+      msg.textContent = 'Gospodarz i gość muszą być różni.'; msg.className = 'msg err'; return;
     }
 
-    container.innerHTML = scheduled.map(m => `
-      <div class="admin-match" id="admin-row-${m.id}">
-        <div class="match-label">
-          <strong>${m.home_team} vs ${m.away_team}</strong>
-          <span>${m.league} &bull; ${formatDate(m.kickoff_at)}</span>
-        </div>
-        <div class="goals-inputs">
-          <input type="number" id="ah-${m.id}" min="0" placeholder="0" />
-          <span>:</span>
-          <input type="number" id="aa-${m.id}" min="0" placeholder="0" />
-        </div>
-        <button class="set-btn" onclick="setResult(${m.id})">Wpisz wynik</button>
-        <span class="row-msg" id="amsg-${m.id}"></span>
-      </div>`).join('');
+    const res  = await fetch(API + '/matches', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id:      currentUser.id,
+        league_id:    leagueId,
+        home_team_id: homeId,
+        away_team_id: awayId,
+        kickoff_at:   new Date(kickoffRaw).toISOString(),
+      }),
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      msg.textContent = `Mecz dodany (id=${data.match_id}).`;
+      msg.className = 'msg ok';
+      loadAdminMatches();
+    } else {
+      msg.textContent = data.detail || 'Błąd.';
+      msg.className = 'msg err';
+    }
+  }
+
+  async function removeMatch(matchId) {
+    if (!confirm('Usunąć mecz wraz z wszystkimi typami?')) return;
+    const res = await fetch(API + '/matches/' + matchId + '?user_id=' + currentUser.id, {
+      method: 'DELETE',
+    });
+    if (res.status === 204) {
+      loadAdminMatches();
+    } else {
+      const data = await res.json();
+      document.getElementById('dmsg-' + matchId).textContent = data.detail || 'Błąd.';
+    }
   }
 
   async function setResult(matchId) {
@@ -543,6 +660,21 @@
     } else {
       msg.textContent = data.detail || 'Błąd.';
       msg.style.color = '#721c24';
+    }
+  }
+
+  async function deletePrediction(predictionId) {
+    if (!confirm('Usunąć ten typ?')) return;
+
+    const res = await fetch(API + '/predictions/' + predictionId + '?user_id=' + currentUser.id, {
+      method: 'DELETE',
+    });
+
+    if (res.status === 204) {
+      loadMyPredictions();
+    } else {
+      const data = await res.json();
+      alert(data.detail || 'Błąd przy usuwaniu.');
     }
   }
 
