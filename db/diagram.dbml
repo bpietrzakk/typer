@@ -55,21 +55,3 @@ Table predictions {
     (user_id, match_id) [unique]
   }
 }
-
-Table private_leagues {
-  id               int          [pk, increment]
-  name             varchar(100) [not null]
-  owner_user_id    int          [not null, ref: > users.id]
-  join_code        varchar(20)  [not null, unique]
-  scoring_rules_id int          [not null, ref: > scoring_rules.id]
-}
-
-Table private_league_members {
-  private_league_id int         [not null, ref: > private_leagues.id]
-  user_id           int         [not null, ref: > users.id]
-  joined_at         timestamptz [not null, default: `now()`]
-
-  indexes {
-    (private_league_id, user_id) [pk]
-  }
-}
