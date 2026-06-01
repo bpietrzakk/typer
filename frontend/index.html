@@ -100,6 +100,28 @@
     .rank-1 td:first-child { font-weight: bold; color: #e94560; }
     .pts { font-weight: bold; font-size: 1.05rem; }
 
+    .admin-match {
+      background: #fff; border-radius: 8px; padding: 18px 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 12px;
+      display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    }
+    .admin-match .match-label { flex: 1; min-width: 200px; }
+    .admin-match .match-label strong { display: block; font-size: 0.97rem; }
+    .admin-match .match-label span { font-size: 0.82rem; color: #888; }
+    .admin-match .goals-inputs { display: flex; align-items: center; gap: 8px; }
+    .admin-match .goals-inputs input {
+      width: 56px; padding: 7px 10px; border: 1px solid #ddd;
+      border-radius: 6px; font-size: 1rem; text-align: center; margin-bottom: 0;
+    }
+    .admin-match .goals-inputs span { font-size: 1.1rem; color: #888; font-weight: bold; }
+    .admin-match button.set-btn {
+      background: #1a1a2e; color: #fff; border: none;
+      padding: 8px 20px; border-radius: 6px; font-size: 0.9rem;
+      cursor: pointer; white-space: nowrap; transition: background 0.2s;
+    }
+    .admin-match button.set-btn:hover { background: #e94560; }
+    .admin-match .row-msg { font-size: 0.85rem; min-width: 140px; }
+
     /* auth screen */
     #auth-screen {
       min-height: 100vh; display: flex; align-items: center; justify-content: center;
@@ -178,7 +200,9 @@
   <nav>
     <button class="active" onclick="showTab('matches', event)">Mecze</button>
     <button onclick="showTab('predict', event)">Dodaj typ</button>
+    <button onclick="showTab('myPredictions', event)">Moje typy</button>
     <button onclick="showTab('ranking', event)">Ranking</button>
+    <button onclick="showTab('admin', event)">Admin</button>
   </nav>
 
   <main>
@@ -222,6 +246,24 @@
       </div>
     </div>
 
+    <!-- TAB: MOJE TYPY -->
+    <div id="tab-myPredictions" class="tab">
+      <h2>Moje typy</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Mecz</th>
+            <th>Liga</th>
+            <th>Kickoff</th>
+            <th>Mój typ</th>
+            <th>Wynik</th>
+            <th>Punkty</th>
+          </tr>
+        </thead>
+        <tbody id="my-predictions-body"><tr><td colspan="6">Ładowanie...</td></tr></tbody>
+      </table>
+    </div>
+
     <!-- TAB: RANKING -->
     <div id="tab-ranking" class="tab">
       <h2>Ranking</h2>
@@ -231,6 +273,12 @@
         </thead>
         <tbody id="ranking-body"><tr><td colspan="3">Ładowanie...</td></tr></tbody>
       </table>
+    </div>
+
+    <!-- TAB: ADMIN -->
+    <div id="tab-admin" class="tab">
+      <h2>Panel admina — wpisz wyniki</h2>
+      <div id="admin-body"><p style="color:#888">Ładowanie...</p></div>
     </div>
 
   </main>
@@ -331,7 +379,9 @@
 
     if (name === 'matches') loadMatches();
     if (name === 'predict') loadMatchesForSelect();
+    if (name === 'myPredictions') loadMyPredictions();
     if (name === 'ranking') loadRanking();
+    if (name === 'admin') loadAdminMatches();
   }
 
   // --- matches tab ---
@@ -394,6 +444,39 @@
     }
   }
 
+  // --- my predictions tab ---
+  async function loadMyPredictions() {
+    const res   = await fetch(API + '/predictions/user/' + currentUser.id);
+    const data  = await res.json();
+    const tbody = document.getElementById('my-predictions-body');
+
+    if (data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888">Nie masz jeszcze żadnych typów</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.map(p => {
+      // show points badge only for finished matches
+      let pointsBadge = '—';
+      if (p.status === 'finished') {
+        const color = p.points_awarded === 5 ? '#155724' : p.points_awarded >= 2 ? '#856404' : '#721c24';
+        const bg    = p.points_awarded === 5 ? '#d4edda' : p.points_awarded >= 2 ? '#fff3cd' : '#f8d7da';
+        pointsBadge = `<span class="badge" style="background:${bg};color:${color}">${p.points_awarded} pkt</span>`;
+      }
+
+      const result = p.status === 'finished' ? `${p.home_goals}:${p.away_goals}` : '—';
+
+      return `<tr>
+        <td><strong>${p.home_team}</strong> vs <strong>${p.away_team}</strong></td>
+        <td>${p.league}</td>
+        <td>${formatDate(p.kickoff_at)}</td>
+        <td>${p.pred_home}:${p.pred_away}</td>
+        <td>${result}</td>
+        <td>${pointsBadge}</td>
+      </tr>`;
+    }).join('');
+  }
+
   // --- ranking tab ---
   async function loadRanking() {
     const res   = await fetch(API + '/ranking');
@@ -405,6 +488,64 @@
         <td>${r.nick}${r.user_id === currentUser.id ? ' <span style="color:#e94560">(Ty)</span>' : ''}</td>
         <td class="pts">${r.total_points} pkt</td>
       </tr>`).join('');
+  }
+
+  // --- admin tab ---
+  async function loadAdminMatches() {
+    const container = document.getElementById('admin-body');
+    const res  = await fetch(API + '/matches');
+    const data = await res.json();
+    const scheduled = data.filter(m => m.status === 'scheduled');
+
+    if (scheduled.length === 0) {
+      container.innerHTML = '<p style="color:#888">Brak zaplanowanych meczów do uzupełnienia.</p>';
+      return;
+    }
+
+    container.innerHTML = scheduled.map(m => `
+      <div class="admin-match" id="admin-row-${m.id}">
+        <div class="match-label">
+          <strong>${m.home_team} vs ${m.away_team}</strong>
+          <span>${m.league} &bull; ${formatDate(m.kickoff_at)}</span>
+        </div>
+        <div class="goals-inputs">
+          <input type="number" id="ah-${m.id}" min="0" placeholder="0" />
+          <span>:</span>
+          <input type="number" id="aa-${m.id}" min="0" placeholder="0" />
+        </div>
+        <button class="set-btn" onclick="setResult(${m.id})">Wpisz wynik</button>
+        <span class="row-msg" id="amsg-${m.id}"></span>
+      </div>`).join('');
+  }
+
+  async function setResult(matchId) {
+    const homeGoals = parseInt(document.getElementById('ah-' + matchId).value);
+    const awayGoals = parseInt(document.getElementById('aa-' + matchId).value);
+    const msg = document.getElementById('amsg-' + matchId);
+
+    if (isNaN(homeGoals) || isNaN(awayGoals)) {
+      msg.textContent = 'Wpisz oba wyniki.';
+      msg.style.color = '#721c24';
+      return;
+    }
+
+    const res  = await fetch(API + '/matches/' + matchId + '/result', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ home_goals: homeGoals, away_goals: awayGoals }),
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      const row = document.getElementById('admin-row-' + matchId);
+      row.style.opacity = '0.5';
+      row.querySelectorAll('input, button').forEach(el => el.disabled = true);
+      msg.textContent = `Zapisano ${homeGoals}:${awayGoals}`;
+      msg.style.color = '#155724';
+    } else {
+      msg.textContent = data.detail || 'Błąd.';
+      msg.style.color = '#721c24';
+    }
   }
 
   function formatDate(iso) {

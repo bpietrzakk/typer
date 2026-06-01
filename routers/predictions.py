@@ -2,11 +2,21 @@ from fastapi import APIRouter, HTTPException
 from psycopg2.errors import UniqueViolation
 
 from db.connection import get_conn, release_conn
-from db.queries import create_prediction, get_match_by_id, get_user_by_id
+from db.queries import create_prediction, get_match_by_id, get_my_predictions, get_user_by_id
 from domain.predictions import is_prediction_allowed
 from schemas.models import PredictionCreate, PredictionResponse
 
 router = APIRouter()
+
+
+@router.get("/predictions/user/{user_id}")
+def list_my_predictions(user_id: int):
+    # return all predictions for a user with match details
+    conn = get_conn()
+    try:
+        return get_my_predictions(conn, user_id)
+    finally:
+        release_conn(conn)
 
 
 @router.post("/predictions", response_model=PredictionResponse, status_code=201)

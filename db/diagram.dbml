@@ -1,0 +1,75 @@
+// Typer Ligowy — diagram ER
+// Wklej na https://dbdiagram.io
+
+Table users {
+  id         int         [pk, increment]
+  nick       varchar(50) [not null, unique]
+  email      varchar(255)[not null, unique]
+  password_hash varchar(64) [not null]
+  created_at timestamptz [not null, default: `now()`]
+}
+
+Table leagues {
+  id      int          [pk, increment]
+  name    varchar(100) [not null]
+  country varchar(50)  [not null]
+  season  varchar(20)  [not null, note: 'np. 2024/25']
+}
+
+Table teams {
+  id         int          [pk, increment]
+  name       varchar(100) [not null]
+  short_name varchar(10)  [not null]
+  league_id  int          [not null, ref: > leagues.id]
+}
+
+Table matches {
+  id           int         [pk, increment]
+  league_id    int         [not null, ref: > leagues.id]
+  home_team_id int         [not null, ref: > teams.id]
+  away_team_id int         [not null, ref: > teams.id]
+  kickoff_at   timestamptz [not null]
+  home_goals   smallint    [note: 'null gdy scheduled']
+  away_goals   smallint    [note: 'null gdy scheduled']
+  status       varchar(20) [not null, default: 'scheduled', note: 'scheduled | finished']
+}
+
+Table scoring_rules {
+  id           int          [pk, increment]
+  name         varchar(100) [not null]
+  exact_pts    smallint     [not null, default: 5]
+  diff_pts     smallint     [not null, default: 3]
+  tendency_pts smallint     [not null, default: 2]
+}
+
+Table predictions {
+  id             int         [pk, increment]
+  user_id        int         [not null, ref: > users.id]
+  match_id       int         [not null, ref: > matches.id]
+  pred_home      smallint    [not null]
+  pred_away      smallint    [not null]
+  points_awarded smallint    [note: 'null dopoki mecz nie finished']
+  created_at     timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, match_id) [unique]
+  }
+}
+
+Table private_leagues {
+  id               int          [pk, increment]
+  name             varchar(100) [not null]
+  owner_user_id    int          [not null, ref: > users.id]
+  join_code        varchar(20)  [not null, unique]
+  scoring_rules_id int          [not null, ref: > scoring_rules.id]
+}
+
+Table private_league_members {
+  private_league_id int         [not null, ref: > private_leagues.id]
+  user_id           int         [not null, ref: > users.id]
+  joined_at         timestamptz [not null, default: `now()`]
+
+  indexes {
+    (private_league_id, user_id) [pk]
+  }
+}

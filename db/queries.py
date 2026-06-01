@@ -56,6 +56,30 @@ _SQL_CREATE_PREDICTION = """
     RETURNING *
 """
 
+# get all predictions for a user with match details — used in "my predictions" view
+_SQL_GET_MY_PREDICTIONS = """
+    SELECT
+        p.id,
+        p.pred_home,
+        p.pred_away,
+        p.points_awarded,
+        p.created_at,
+        m.kickoff_at,
+        m.status,
+        m.home_goals,
+        m.away_goals,
+        ht.name AS home_team,
+        at.name AS away_team,
+        l.name  AS league
+    FROM predictions p
+    JOIN matches m  ON p.match_id = m.id
+    JOIN teams ht   ON m.home_team_id = ht.id
+    JOIN teams at   ON m.away_team_id = at.id
+    JOIN leagues l  ON m.league_id = l.id
+    WHERE p.user_id = %s
+    ORDER BY m.kickoff_at DESC
+"""
+
 # get all predictions for a match — used when recalculating points after result is set
 _SQL_GET_PREDICTIONS_FOR_MATCH = """
     SELECT id, user_id, pred_home, pred_away, points_awarded
@@ -141,6 +165,12 @@ def create_prediction(conn, user_id: int, match_id: int, pred_home: int, pred_aw
     cur.execute(_SQL_CREATE_PREDICTION, (user_id, match_id, pred_home, pred_away))
     conn.commit()
     return cur.fetchone()
+
+
+def get_my_predictions(conn, user_id: int) -> list:
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute(_SQL_GET_MY_PREDICTIONS, (user_id,))
+    return cur.fetchall()
 
 
 def get_predictions_for_match(conn, match_id: int) -> list:
