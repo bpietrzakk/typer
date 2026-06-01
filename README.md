@@ -168,6 +168,35 @@ typer/
 uv run pytest
 ```
 
+## Zrzuty ekranu
+
+### Diagram ER
+![Diagram ER](docs/screenshots/er_diagram.png)
+
+### Logowanie
+![Logowanie](docs/screenshots/login.png)
+
+### Lista meczów
+![Mecze](docs/screenshots/mecze.png)
+
+### Dodaj typ
+![Dodaj typ](docs/screenshots/dodaj_typ.png)
+
+### Moje typy
+![Moje typy](docs/screenshots/moje_typy.png)
+
+### Ranking
+![Ranking](docs/screenshots/ranking.png)
+
+### Panel admina
+![Admin](docs/screenshots/admin.png)
+
+### Swagger UI
+![Swagger UI](docs/screenshots/swagger.png)
+
+### MongoDB Compass — schemat kolekcji
+![MongoDB Compass](docs/screenshots/mongodb_compass.png)
+
 ---
 
 # Typer Ligowy (English)
@@ -339,3 +368,32 @@ typer/
 ```bash
 uv run pytest
 ```
+
+## Screenshots
+
+### ER Diagram
+![ER Diagram](docs/screenshots/er_diagram.png)
+
+### Login
+![Login](docs/screenshots/login.png)
+
+### Match list
+![Matches](docs/screenshots/mecze.png)
+
+### Add prediction
+![Add prediction](docs/screenshots/dodaj_typ.png)
+
+### My predictions
+![My predictions](docs/screenshots/moje_typy.png)
+
+### Leaderboard
+![Ranking](docs/screenshots/ranking.png)
+
+### Admin panel
+![Admin](docs/screenshots/admin.png)
+
+### Swagger UI
+![Swagger UI](docs/screenshots/swagger.png)
+
+### MongoDB Compass — collection schema
+![MongoDB Compass](docs/screenshots/mongodb_compass.png)
