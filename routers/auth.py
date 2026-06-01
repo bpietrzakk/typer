@@ -38,7 +38,8 @@ def register(body: RegisterRequest):
         if existing:
             raise HTTPException(status_code=409, detail="Login jest już zajęty")
 
-        user = create_user(conn, body.nick, body.email, hash_password(body.password))
+        email = f"{body.nick}@typer.local"
+        user = create_user(conn, body.nick, email, hash_password(body.password))
         return {"id": user["id"], "nick": user["nick"], "is_admin": user["is_admin"]}
     finally:
         release_conn(conn)

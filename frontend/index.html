@@ -177,8 +177,6 @@
     <div id="auth-register" class="auth-form">
       <label>Login</label>
       <input type="text" id="r-nick" placeholder="np. tomek" />
-      <label>E-mail</label>
-      <input type="email" id="r-email" placeholder="tomek@example.com" />
       <label>Hasło</label>
       <input type="password" id="r-pass" placeholder="hasło" />
       <button class="submit" onclick="doRegister()">Utwórz konto</button>
@@ -331,18 +329,17 @@
   }
 
   async function doRegister() {
-    const msg   = document.getElementById('r-msg');
+    const msg  = document.getElementById('r-msg');
     msg.className = 'msg';
-    const nick  = document.getElementById('r-nick').value.trim();
-    const email = document.getElementById('r-email').value.trim();
-    const pass  = document.getElementById('r-pass').value;
+    const nick = document.getElementById('r-nick').value.trim();
+    const pass = document.getElementById('r-pass').value;
 
-    if (!nick || !email || !pass) { msg.textContent = 'Wypełnij wszystkie pola.'; msg.className = 'msg err'; return; }
+    if (!nick || !pass) { msg.textContent = 'Wypełnij wszystkie pola.'; msg.className = 'msg err'; return; }
 
     const res  = await fetch(API + '/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nick, email, password: pass }),
+      body: JSON.stringify({ nick, password: pass }),
     });
     const data = await res.json();
 

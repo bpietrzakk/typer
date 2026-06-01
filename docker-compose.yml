@@ -11,5 +11,14 @@ services:
     volumes:
       - typer_db_data:/var/lib/postgresql/data
 
+  mongo:
+    image: mongo:7
+    container_name: typer_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - typer_mongo_data:/data/db
+
 volumes:
   typer_db_data:
+  typer_mongo_data:
