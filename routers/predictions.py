@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+from psycopg2.errors import UniqueViolation
 
 from db.connection import get_conn, release_conn
 from db.queries import create_prediction, get_match_by_id, get_user_by_id
@@ -26,6 +27,10 @@ def add_prediction(body: PredictionCreate):
         if not is_prediction_allowed(match["kickoff_at"]):
             raise HTTPException(status_code=409, detail="Mecz już się rozpoczął, nie można dodać typu")
 
-        return create_prediction(conn, body.user_id, body.match_id, body.pred_home, body.pred_away)
+        try:
+            return create_prediction(conn, body.user_id, body.match_id, body.pred_home, body.pred_away)
+        except UniqueViolation:
+            conn.rollback()
+            raise HTTPException(status_code=409, detail="Już dodałeś typ na ten mecz")
     finally:
         release_conn(conn)

@@ -149,25 +149,5 @@ INSERT INTO predictions (user_id, match_id, pred_home, pred_away, points_awarded
     (4, 5, 2, 1, 0),  -- wiktor  miss
     (9, 5, 0, 2, 3);  -- kamil   diff
 
--- =========================================================
--- TYPY — nadchodzace mecze (bez punktow)
--- =========================================================
-
--- mecz 6: Wieczysta vs Chrobry
-INSERT INTO predictions (user_id, match_id, pred_home, pred_away) VALUES
-    (1, 6, 2, 0),
-    (2, 6, 1, 1),
-    (3, 6, 3, 1),
-    (4, 6, 1, 0);
-
--- mecz 7: FINAŁ Arsenal vs PSG
-INSERT INTO predictions (user_id, match_id, pred_home, pred_away) VALUES
-    (1, 7, 2, 1),
-    (2, 7, 1, 2),
-    (3, 7, 2, 0),
-    (4, 7, 1, 1),
-    (5, 7, 0, 1),
-    (6, 7, 2, 2),
-    (7, 7, 1, 0),
-    (8, 7, 3, 1),
-    (9, 7, 2, 1);
+-- scheduled matches intentionally have no seeded predictions
+-- users add their own through the frontend
